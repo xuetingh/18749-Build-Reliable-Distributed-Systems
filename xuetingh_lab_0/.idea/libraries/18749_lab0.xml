@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="18749-lab0">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/libs/18749-lab0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/libs/LabsDependencies.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/libs/18749-lab0.jar!/doc" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>

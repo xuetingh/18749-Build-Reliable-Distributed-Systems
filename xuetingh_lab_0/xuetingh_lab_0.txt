@@ -1,0 +1,126 @@
+﻿Paola Aguilar (apa)
+Xueting Hu (xuetingh)
+18-749: Lab 0 Write Up
+
+
+
+
+1. Commands and Responses Between the Server and Client
+
+
+        === CLIENT INPUT AND OUTPUT ===
+        Client > update 10
+        10
+
+
+        === SERVER OUTPUT ===
+(changeBalance:local address = 128.237.126.196:10002 / remote address = 128.237.126.196:52670)
+
+
+=== CLIENT INPUT AND OUTPUT ===
+        Client > check
+        10
+
+
+        === SERVER OUTPUT ===
+(readBalance:local address = 128.237.126.196:10002 / remote address = 128.237.126.196:52670)
+
+
+=== CLIENT INPUT AND OUTPUT ===
+        Client > !run-script commands.txt
+        Client$ 10
+Client$ -90
+
+
+        === SERVER OUTPUT ===
+(readBalance:local address = 128.237.126.196:10002 / remote address = 128.237.126.196:52681)
+(changeBalance:local address = 128.237.126.196:10002 / remote address = 128.237.126.196:52681)
+
+
+=== CLIENT INPUT AND OUTPUT ===
+        Client > exit
+        
+=== END OUTPUT ===
+
+
+
+
+3. Commands and Responses with the Proxy
+
+
+        === CLIENT INPUT AND OUTPUT  ===
+        Client> check
+        0
+
+
+===PROXY OUTPUT===
+           (In Proxy)
+
+        === SERVER OUTPUT ===
+           (readBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51497)
+
+
+=== CLIENT INPUT AND OUTPUT ===
+        Client > update +15
+        15
+
+
+=== PROXY OUTPUT ===
+           (In Proxy)
+
+        === SERVER OUTPUT ===
+          (changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51497)
+
+
+=== CLIENT INPUT AND OUTPUT  ===
+        Client > update +20
+        35
+
+
+        === PROXY OUTPUT ===
+           (In Proxy)
+
+        === SERVER OUTPUT ===
+          (changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51497)
+
+
+=== CLIENT INPUT AND OUTPUT  ===
+        Client> update -40
+        -5
+
+
+=== PROXY OUTPUT ===
+           (In Proxy)
+
+        === SERVER OUTPUT ===
+          (changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51497)
+
+
+=== CLIENT INPUT AND OUTPUT  ===
+        Client> !run-script commands.txt
+Client$ 12
+Client$ 22
+Client$ 32
+Client$ 42
+Client$ 52
+
+
+=== PROXY OUTPUT ===
+           (In Proxy)
+(In Proxy)
+(In Proxy)
+(In Proxy)
+(In Proxy)
+
+        === SERVER OUTPUT ===
+(readBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51544)
+(changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51544)
+(changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51544)
+(changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51544)
+(changeBalance:local address = 127.0.0.1:10000 / remote address = 127.0.0.1:51544)
+
+
+=== CLIENT INPUT AND OUTPUT  ===
+Client> exit
+
+          =====END OUTPUT=====
