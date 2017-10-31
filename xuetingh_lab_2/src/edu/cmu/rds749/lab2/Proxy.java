@@ -25,6 +25,11 @@ public class Proxy extends AbstractProxy {
             this.isAlive = isAlive;
             this.stub = stub;
         }
+
+        @Override
+        public String toString() {
+            return "" + this.isAlive;
+        }
     }
 
     // a hashmap for registered servers
@@ -51,14 +56,20 @@ public class Proxy extends AbstractProxy {
 
     @Override
     protected synchronized void serverRegistered(long id, BankAccountStub stub) {
+        System.out.println("注册");
+
         int state;
         boolean isAlive = true;
-        while(!requests.isEmpty());
+
+//        while(!requests.isEmpty());
         for (long serverId : serverMap.keySet()) {
             if (serverMap.get(serverId).isAlive) {
                 try {
                     state = serverMap.get(serverId).stub.getState();
+                    System.out.println("in get state");
+                    System.out.println(serverId);
                 } catch (BankAccountStub.NoConnectionException e) {
+                    System.out.println("catch in serverRegistered");
                     serverMap.get(serverId).isAlive = false;
                     synchronized (failedServersLock){
                     failedServers.add(serverId);
@@ -83,6 +94,7 @@ public class Proxy extends AbstractProxy {
         synchronized (failedServersLock){
             serversFailed(failedServers);
         }
+        System.out.println(serverMap);
     }
 
     @Override
@@ -115,6 +127,8 @@ public class Proxy extends AbstractProxy {
                 }
             }
         }
+        System.out.println("(In sendtoallservers)");
+        System.out.println(change);
         if (reqFail) clientProxy.RequestUnsuccessfulException(reqid);
     }
 
@@ -171,6 +185,12 @@ public class Proxy extends AbstractProxy {
 
     @Override
     protected void serversFailed(List<Long> failedServers) {
+        System.out.println(failedServers.toString());
+        for (long serverId : serverMap.keySet()) {
+            if (failedServers.contains(serverId)) {
+                serverMap.get(serverId).isAlive = false;
+            }
+        }
         super.serversFailed(failedServers);
     }
 }
