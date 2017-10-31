@@ -53,7 +53,7 @@ public class Proxy extends AbstractProxy {
     protected synchronized void serverRegistered(long id, BankAccountStub stub) {
         int state;
         boolean isAlive = true;
-
+        while(!requests.isEmpty());
         for (long serverId : serverMap.keySet()) {
             if (serverMap.get(serverId).isAlive) {
                 try {
@@ -135,6 +135,7 @@ public class Proxy extends AbstractProxy {
             requests.put(reqid, list);
             }
         }
+        checkRequests(reqid);
 //        System.out.println("end read balance, server:" + serverid + ", request:" + reqid);
 //        System.out.println(requests.get(reqid).toString());
     }
@@ -154,7 +155,18 @@ public class Proxy extends AbstractProxy {
             synchronized (requestLock) {
             requests.put(reqid, list);}
         }
+        checkRequests(reqid);
+    }
 
+    protected synchronized void checkRequests(int reqid) {
+        boolean isDone = true;
+        for(long id : serverMap.keySet()) {
+            if (serverMap.get(id).isAlive == true && !requests.get(reqid).contains(id)) {
+                isDone = false;
+                break;
+            }
+        }
+        if (isDone) requests.remove(reqid);
     }
 
     @Override
