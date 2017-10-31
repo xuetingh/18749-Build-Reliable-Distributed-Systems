@@ -5,6 +5,8 @@ import edu.cmu.rds749.common.BankAccountStub;
 import org.apache.commons.configuration2.Configuration;
 
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -39,9 +41,9 @@ public class Proxy extends AbstractProxy {
     // records which server completes which request, key is request id, value is a list of server id
     private HashMap<Integer, List<Long>> requests;
 
-    private Object serverMapLock;
-    private Object failedServersLock;
-    private Object requestLock;
+    private ReadWriteLock serverMapLock;
+    private ReadWriteLock failedServersLock;
+    private ReadWriteLock requestLock;
 
 
     public Proxy(Configuration config) {
@@ -49,31 +51,39 @@ public class Proxy extends AbstractProxy {
         serverMap = new HashMap<>();
         requests = new HashMap<>();
         failedServers = new ArrayList<>();
-        serverMapLock = new Object();
-        failedServersLock = new Object();
-        requestLock = new Object();
+        serverMapLock = new ReentrantReadWriteLock();
+        failedServersLock = new ReentrantReadWriteLock();
+        requestLock = new ReentrantReadWriteLock();
     }
 
     @Override
     protected synchronized void serverRegistered(long id, BankAccountStub stub) {
-        System.out.println("注册");
+        System.out.println("register");
 
         int state;
         boolean isAlive = true;
+        while(!requests.isEmpty());
 
-//        while(!requests.isEmpty());
         for (long serverId : serverMap.keySet()) {
+            serverMapLock.readLock().lock();
             if (serverMap.get(serverId).isAlive) {
                 try {
                     state = serverMap.get(serverId).stub.getState();
+                    serverMapLock.readLock().unlock();
+
                     System.out.println("in get state");
                     System.out.println(serverId);
                 } catch (BankAccountStub.NoConnectionException e) {
                     System.out.println("catch in serverRegistered");
+                    serverMapLock.readLock().unlock();
+
+                    serverMapLock.writeLock().lock();
                     serverMap.get(serverId).isAlive = false;
-                    synchronized (failedServersLock){
+                    serverMapLock.writeLock().unlock();
+
+                    failedServersLock.writeLock().lock();
                     failedServers.add(serverId);
-                    }
+                    failedServersLock.writeLock().unlock();
                     continue;
                 }
 
@@ -81,19 +91,23 @@ public class Proxy extends AbstractProxy {
                     stub.setState(state);
                 } catch (BankAccountStub.NoConnectionException e) {
                     isAlive = false;
-                    synchronized (failedServersLock){
-                        failedServers.add(serverId);
-                    }
+
+                    failedServersLock.writeLock().lock();
+                    failedServers.add(serverId);
+                    failedServersLock.writeLock().unlock();
                 }
                 break;
             }
         }
-        synchronized (serverMapLock) {
+
+        serverMapLock.writeLock().lock();
         serverMap.put(id, new Server(stub, isAlive));
-        }
-        synchronized (failedServersLock){
-            serversFailed(failedServers);
-        }
+        serverMapLock.writeLock().unlock();
+
+        failedServersLock.readLock().lock();
+        serversFailed(failedServers);
+        failedServersLock.readLock().unlock();
+
         System.out.println(serverMap);
     }
 
@@ -113,20 +127,33 @@ public class Proxy extends AbstractProxy {
 
     private synchronized void sendToAllServers (int reqid, int update, boolean change) {
         boolean reqFail = true;
+        serverMapLock.readLock().lock();
         for (long id : serverMap.keySet()) {
             if (serverMap.get(id).isAlive) {
                 try {
-                    if (change) serverMap.get(id).stub.beginChangeBalance(reqid, update);
-                    else serverMap.get(id).stub.beginReadBalance(reqid);
+                    serverMapLock.readLock().unlock();
+                    if (change) {
+                        serverMap.get(id).stub.beginChangeBalance(reqid, update);
+                    }
+                    else {
+                        serverMap.get(id).stub.beginReadBalance(reqid);
+                    }
                     reqFail = false;
                 } catch (BankAccountStub.NoConnectionException e) {
+
+                    serverMapLock.writeLock().lock();
                     serverMap.get(id).isAlive = false;
-                    synchronized (failedServersLock){
-                        failedServers.add(id);
-                    }
+                    serverMapLock.writeLock().unlock();
+
+                    failedServersLock.writeLock().lock();
+                    failedServers.add(id);
+                    serversFailed(failedServers);
+
+                    failedServersLock.writeLock().unlock();
                 }
             }
         }
+
         System.out.println("(In sendtoallservers)");
         System.out.println(change);
         if (reqFail) clientProxy.RequestUnsuccessfulException(reqid);
@@ -135,19 +162,23 @@ public class Proxy extends AbstractProxy {
     @Override
     protected synchronized void endReadBalance(long serverid, int reqid, int balance) {
         System.out.println("(In Proxy)");
+
+        requestLock.readLock().lock();
         if (requests.get(reqid) == null) {
             List<Long> serverList = new ArrayList<>();
             serverList.add(serverid);
-            synchronized (requestLock) {
+            requestLock.readLock().unlock();
+            requestLock.writeLock().lock();
                 requests.put(reqid, serverList);
-
-            clientProxy.endReadBalance(reqid, balance);}
+            requestLock.writeLock().unlock();
+            clientProxy.endReadBalance(reqid, balance);
         } else {
             List<Long> list = requests.get(reqid);
             list.add(serverid);
-            synchronized (requestLock) {
+            requestLock.readLock().unlock();
+            requestLock.writeLock().lock();
             requests.put(reqid, list);
-            }
+            requestLock.writeLock().unlock();
         }
         checkRequests(reqid);
 //        System.out.println("end read balance, server:" + serverid + ", request:" + reqid);
@@ -157,30 +188,46 @@ public class Proxy extends AbstractProxy {
     @Override
     protected synchronized void endChangeBalance(long serverid, int reqid, int balance) {
         System.out.println("(In Proxy)");
+        requestLock.readLock().lock();
         if (requests.get(reqid) == null) {
             List<Long> serverList = new ArrayList<>();
             serverList.add(serverid);
-            synchronized (requestLock) {
+            requestLock.readLock().unlock();
+
+            requestLock.writeLock().lock();
             requests.put(reqid, serverList);
-            clientProxy.endChangeBalance(reqid, balance);}
+            requestLock.writeLock().unlock();
+
+            clientProxy.endChangeBalance(reqid, balance);
         } else {
             List<Long> list = requests.get(reqid);
             list.add(serverid);
-            synchronized (requestLock) {
-            requests.put(reqid, list);}
+
+            requestLock.readLock().unlock();
+
+            requestLock.writeLock().lock();
+            requests.put(reqid, list);
+            requestLock.writeLock().unlock();
+            checkRequests(reqid);
         }
-        checkRequests(reqid);
     }
 
     protected synchronized void checkRequests(int reqid) {
         boolean isDone = true;
+        requestLock.readLock().lock();
+        serverMapLock.readLock().lock();
         for(long id : serverMap.keySet()) {
             if (serverMap.get(id).isAlive == true && !requests.get(reqid).contains(id)) {
                 isDone = false;
                 break;
             }
         }
+        requestLock.readLock().unlock();
+        serverMapLock.readLock().unlock();
+
+        requestLock.writeLock().lock();
         if (isDone) requests.remove(reqid);
+        requestLock.writeLock().unlock();
     }
 
     @Override
