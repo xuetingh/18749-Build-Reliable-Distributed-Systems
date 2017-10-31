@@ -1,0 +1,8 @@
+Paola Aguilar (apa)
+Xueting Hu (xuetingh)
+18-749: Lab 2 Write Up
+
+Question 8:
+
+The method sendToAllServers() iterates through all of the registered servers in a concurrent hashmap and sends each the read or check balance request, taking note of which servers fail. We ensure that all of the servers receive requests in the same order through the use of the synchronized keyword. By making sendToAllServers() a synchronized method, we are able to lock the object from other threads until the lock-holding thread returns and thus releases the lock. This means since only a single thread can access the critical section (which in this case is the hashmap of servers) at a time, it is able to send the request to each server without being interrupted. Thus, the requests are a totally ordered set.
+
