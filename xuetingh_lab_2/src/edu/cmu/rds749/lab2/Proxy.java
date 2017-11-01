@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 
-
 /**
  * Implements the Proxy.
  */
@@ -62,14 +61,13 @@ public class Proxy extends AbstractProxy {
 
         int state;
         boolean isAlive = true;
-        while(!requests.isEmpty());
-
+        while (!requests.isEmpty()) ;
         for (long serverId : serverMap.keySet()) {
-            serverMapLock.readLock().lock();
+
             if (serverMap.get(serverId).isAlive) {
                 try {
+                    serverMapLock.readLock().lock();
                     state = serverMap.get(serverId).stub.getState();
-                    serverMapLock.readLock().unlock();
 
                     System.out.println("in get state");
                     System.out.println(serverId);
@@ -82,12 +80,16 @@ public class Proxy extends AbstractProxy {
                     serverMapLock.writeLock().unlock();
 
                     failedServersLock.writeLock().lock();
+                    System.out.println("jia list " + serverId);
                     failedServers.add(serverId);
                     failedServersLock.writeLock().unlock();
                     continue;
+                } finally {
+                    serverMapLock.readLock().unlock();
                 }
 
                 try {
+
                     stub.setState(state);
                 } catch (BankAccountStub.NoConnectionException e) {
                     isAlive = false;
@@ -105,6 +107,7 @@ public class Proxy extends AbstractProxy {
         serverMapLock.writeLock().unlock();
 
         failedServersLock.readLock().lock();
+        System.out.println("called by me");
         serversFailed(failedServers);
         failedServersLock.readLock().unlock();
 
@@ -125,17 +128,14 @@ public class Proxy extends AbstractProxy {
     }
 
 
-    private synchronized void sendToAllServers (int reqid, int update, boolean change) {
+    private synchronized void sendToAllServers(int reqid, int update, boolean change) {
         boolean reqFail = true;
-        serverMapLock.readLock().lock();
         for (long id : serverMap.keySet()) {
             if (serverMap.get(id).isAlive) {
                 try {
-                    serverMapLock.readLock().unlock();
                     if (change) {
                         serverMap.get(id).stub.beginChangeBalance(reqid, update);
-                    }
-                    else {
+                    } else {
                         serverMap.get(id).stub.beginReadBalance(reqid);
                     }
                     reqFail = false;
@@ -147,15 +147,13 @@ public class Proxy extends AbstractProxy {
 
                     failedServersLock.writeLock().lock();
                     failedServers.add(id);
+                    System.out.println("called by me");
                     serversFailed(failedServers);
-
                     failedServersLock.writeLock().unlock();
                 }
             }
         }
 
-        System.out.println("(In sendtoallservers)");
-        System.out.println(change);
         if (reqFail) clientProxy.RequestUnsuccessfulException(reqid);
     }
 
@@ -169,7 +167,7 @@ public class Proxy extends AbstractProxy {
             serverList.add(serverid);
             requestLock.readLock().unlock();
             requestLock.writeLock().lock();
-                requests.put(reqid, serverList);
+            requests.put(reqid, serverList);
             requestLock.writeLock().unlock();
             clientProxy.endReadBalance(reqid, balance);
         } else {
@@ -230,11 +228,37 @@ public class Proxy extends AbstractProxy {
         requestLock.writeLock().unlock();
     }
 
+//    protected synchronized void checkRequests(int reqid) {
+//        boolean isDone = false;
+//        requestLock.readLock().lock();
+//        serverMapLock.readLock().lock();
+//        for (long id : serverMap.keySet()) {
+//            if (serverMap.get(id).isAlive == true && requests.get(reqid).contains(id)) {
+//                isDone = true;
+//                break;
+//            }
+//        }
+//        requestLock.readLock().unlock();
+//        serverMapLock.readLock().unlock();
+//
+//        requestLock.writeLock().lock();
+//        if (isDone) requests.remove(reqid);
+//        requestLock.writeLock().unlock();
+//    }
+
     @Override
     protected void serversFailed(List<Long> failedServers) {
-        System.out.println(failedServers.toString());
+        System.out.println("failedServers size");
+        System.out.println(failedServers.size());
+        for (long f : failedServers) {
+            System.out.println("f:" + f);
+        }
         for (long serverId : serverMap.keySet()) {
+            System.out.println();
+            System.out.println("serverid:" + serverId);
+
             if (failedServers.contains(serverId)) {
+                System.out.println("contained");
                 serverMap.get(serverId).isAlive = false;
             }
         }
