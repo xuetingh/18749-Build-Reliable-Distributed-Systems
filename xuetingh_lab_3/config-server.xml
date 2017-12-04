@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<configuration>
+    <serverHost>localhost</serverHost>
+    <serverPort>10000</serverPort>
+    <proxyHost>localhost</proxyHost>
+    <proxyPort>10002</proxyPort>
+    <clientHost>localhost</clientHost>
+    <clientPort>9999</clientPort>
+    <heartbeatIntervalMillis>1000</heartbeatIntervalMillis>
+    <serverDelayMillis>0</serverDelayMillis>
+    <checkpointFrequency>5000</checkpointFrequency>
+</configuration>
